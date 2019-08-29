@@ -28,6 +28,8 @@ module square_matrix_mod
      end function gets
 
      function solve(this, rhs) result(solution)
+       ! TODO: Consider returning a derived type with information on
+       ! error, etc.
        import square_matrix
        import dp
        class(square_matrix), intent(inout) :: this
@@ -131,8 +133,11 @@ contains
     real(dp), dimension(this%get_size(), this%get_size()) :: matrix
     integer :: i, j
     do concurrent (i=1:this%get_size(), j=1:this%get_size())
-       matrix(i, j) = this%matrix(i, j) / &
-            (this%row_scale_factors(i) * this%col_scale_factors(j))
+       matrix(i, j) = this%matrix(i, j)
+       if (this%equilibration == 'R' .or. this%equilibration == 'B') &
+            matrix(i, j) = matrix(i,j) / this%row_scale_factors(i)
+       if (this%equilibration == 'C' .or. this%equilibration == 'B') &
+            matrix(i, j) = matrix(i,j) / this%col_scale_factors(j)
     end do
   end function get_matrix
 
@@ -181,8 +186,82 @@ contains
          this%col_scale_factors, b, n, x, n, rcond, ferr, berr,       &
          real_work_array, integer_work_array, info)
 
+    if (info /= 0) error stop "DGESVX returned with non-zero INFO argument"
     this%factored = .true.
     solution = x(:,1)
   end function inv_mat_mult
   
 end module general_square_matrix_mod
+
+
+program test_solver
+  use square_matrix_mod, only: dp
+  use general_square_matrix_mod, only: general_square_matrix
+  implicit none
+
+  type(general_square_matrix) :: solver
+  integer, parameter :: n = 5
+  real(dp), dimension(n, n) :: matrix
+  real(dp), dimension(n) :: x_actual, x_solved, b
+  integer :: i
+  
+  matrix(1, 1) = 3.5_dp
+  matrix(1, 2) = 1._dp 
+  matrix(1, 3) = -5._dp
+  matrix(1, 4) = 1._dp 
+  matrix(1, 5) = 0._dp 
+
+  matrix(2, 1) = -0.5_dp
+  matrix(2, 2) = 0.03_dp
+  matrix(2, 3) = 8._dp
+  matrix(2, 4) = 0._dp
+  matrix(2, 5) = -7._dp
+
+  matrix(3, 1) = -2.2_dp
+  matrix(3, 2) = 100._dp
+  matrix(3, 3) = 0._dp
+  matrix(3, 4) = -1._dp
+  matrix(3, 5) = -1._dp
+
+  matrix(4, 1) = 5.5_dp
+  matrix(4, 2) = 0._dp
+  matrix(4, 3) = -11._dp
+  matrix(4, 4) = -82._dp
+  matrix(4, 5) = 2._dp
+
+  matrix(5, 1) = 0._dp
+  matrix(5, 2) = 5._dp
+  matrix(5, 3) = 4._dp
+  matrix(5, 4) = 3._dp
+  matrix(5, 5) = -6._dp
+
+  write(*, "(A)") "Solving linear system"
+  do i = 1, n
+     write(*, "(5F9.2)") matrix(i, :)
+  end do
+
+  solver = general_square_matrix(matrix)
+
+  x_actual(1) = 1._dp
+  x_actual(2) = 2._dp
+  x_actual(3) = 3._dp
+  x_actual(4) = 4._dp
+  x_actual(5) = 5._dp
+
+  b(1) = -5.5_dp
+  b(2) = -11.44_dp
+  b(3) = 188.8_dp
+  b(4) = -345.5_dp
+  b(5) = 7._dp
+
+  write(*, "(/, A, T25, '[', 5F9.2, ']')") "RHS of linear system is", b
+  write(*, "(A, T25, '[', 5F9.2, ']')") "Expected solution is", x_actual
+
+  b = solver * x_actual
+  x_solved = solver%inv_mat_mult(b)
+
+  write(*, "(/, A, T25, '[', 5F9.2, ']')") "Actual solution is", x_solved
+  write(*, "(A, F8.3)") "Backward Error = ", sqrt(sum((solver * x_solved - b)**2))
+  write(*, "(A, F8.3)") "Forward Error  = ", sqrt(sum((x_solved - x_actual)**2))
+  
+end program test_solver
