@@ -1,39 +1,38 @@
 module oop_example_mod
-  type :: foo
-    integer :: i = 5 !Initial value
+  type :: parent
+    integer, private :: i = 5
   contains
-    procedure :: get_val=>get_fval
-  end type foo
+    procedure :: get_val=>get_parent
+  end type parent
 
-  type, extends(foo) :: bar
+  type, extends(parent) :: child
   contains
-    procedure :: get_val=>get_bval
-  end type bar
+    procedure :: get_val=>get_child
+  end type child
 contains
-  integer function get_fval(this)
-    class(foo), intent(in) :: this
-    get_fval = this%i
+  integer function get_parent(this)
+    class(parent), intent(in):: this
+    get_parent = this%i
   end function
 
-  integer function get_bval(this)
-    class(bar), intent(in) :: this
-    get_bval = 2*this%i - 1
+  integer function get_child(this)
+    class(child), intent(in):: this
+    get_child = 2*this%i - 1
   end function
 end module oop_example_mod
 
-
 program polymorphism_demo
   use oop_example_mod
-  type(foo) :: f
-  type(bar) :: b
+  type(parent) :: p
+  type(child) :: c
 
-  call print_val(f) ! Prints 5
-  call print_val(b) ! Prints 9
+  call print_val(p) ! Prints 5
+  call print_val(c) ! Prints 9
 
 contains
 
   subroutine print_val(obj)
-    class(foo), intent(in) :: obj
+    class(parent), intent(in) :: obj
     print*, obj%get_val()
   end subroutine print_val
 

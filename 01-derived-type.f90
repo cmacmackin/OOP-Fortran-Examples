@@ -1,7 +1,7 @@
 module type_foo_mod
   type :: foo
-    real, private :: int_comp
-    integer, public :: real_comp
+    real, private :: real_comp
+    integer, public :: int_comp
   end type foo
 end module type_foo_mod
 
